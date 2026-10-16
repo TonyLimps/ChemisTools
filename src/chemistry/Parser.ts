@@ -1,4 +1,5 @@
 import {Token, TokenType} from './Token.ts';
+import {Formula, Term, Element} from './AST.ts';
 
 export class ParseError extends Error {
     public readonly start: number;
@@ -65,6 +66,125 @@ export default class Parser {
         }
         return tokens;
     }
+    static parse(text: string): Formula {
+        const tokens = Parser.tokenizer(text);
+        let context = new ParseContext(tokens,0);
+        return parseFormula(context);
+    }
+}
+
+class ParseContext {
+    constructor(
+        public tokens: Token[],
+        public current: number
+    ) {}
+}
+
+
+function parseFormula(c: ParseContext): Formula {
+    let formula: Formula = new Formula();
+    while (c.current < c.tokens.length) {
+        let currentToken = c.tokens[c.current];
+        if (currentToken.type === TokenType.ELEMENT) {
+            const element = new Element(currentToken.value);
+            let factor = peekFactor(c);
+            formula.nodes.set(element, factor);
+            c.current++;
+        }
+        else if (currentToken.type === TokenType.LEFT_BRACKET) {
+            const bracketPairs: Record<string, string> = {
+                '(': ')',
+                '[': ']'
+            };
+            const rightBracket = bracketPairs[currentToken.value];
+            c.current++;
+            const subTerm = parseTerm(c);
+            currentToken = c.tokens[c.current];
+            if (currentToken.value !== rightBracket) {
+                throw new ParseError(`应为 '${rightBracket}'`, currentToken.start, currentToken.end);
+            }
+            let factor = peekFactor(c);
+            formula.nodes.set(subTerm, factor);
+            c.current++;
+        }
+        else if (currentToken.type === TokenType.DOT) {
+            let factor = peekFactor(c);
+            c.current++;
+            if (c.current >= c.tokens.length) {
+                throw new ParseError("缺少元素或数字", currentToken.start, currentToken.end);
+            }
+            const subFormula = parseFormula(c);
+            formula.nodes.set(subFormula, factor);
+            c.current++;
+        }
+        else if (currentToken.type === TokenType.RIGHT_BRACKET) {
+            break;
+        }
+        else {
+            throw new ParseError("应为元素或括号", currentToken.start, currentToken.end);
+        }
+    }
+    return formula;
+}
+
+function parseTerm(c: ParseContext): Term {
+    let term: Term = new Term();
+    while (c.current < c.tokens.length) {
+        let currentToken = c.tokens[c.current];
+        if (currentToken.type === TokenType.ELEMENT) {
+            const element = new Element(currentToken.value);
+            let factor = peekFactor(c);
+            term.nodes.set(element, factor);
+            c.current++;
+        }
+        else if (currentToken.type === TokenType.LEFT_BRACKET) {
+            const bracketPairs: Record<string, string> = {
+                '(': ')',
+                '[': ']'
+            };
+            const rightBracket = bracketPairs[currentToken.value];
+            c.current++;
+            const subTerm = parseTerm(c);
+            currentToken = c.tokens[c.current];
+            if (currentToken.value !== rightBracket) {
+                throw new ParseError(`应为 '${rightBracket}'`, currentToken.start, currentToken.end);
+            }
+            let factor = peekFactor(c);
+            term.nodes.set(subTerm, factor);
+            c.current++;
+        }
+        else if (currentToken.type === TokenType.DOT) {
+            c.current++;
+            if (c.current >= c.tokens.length) {
+                throw new ParseError("缺少元素或数字", currentToken.start, currentToken.end);
+            }
+            currentToken = c.tokens[c.current];
+            let factor = peekFactor(c);
+            const subFormula = parseFormula(c);
+            term.nodes.set(subFormula, factor);
+            c.current++;
+        }
+        else if (currentToken.type === TokenType.RIGHT_BRACKET) {
+            break;
+        }
+        else {
+            throw new ParseError("应为元素或括号", currentToken.start, currentToken.end);
+        }
+    }
+    return term;
+}
+
+function peekFactor(c: ParseContext): number {
+    const peek = c.tokens[c.current + 1];
+    let factor = 1;
+    if (peek === undefined) {
+        factor = 1;
+    }
+    else if (peek.type === TokenType.NUMBER) {
+        factor = peek.value;
+        c.current++;
+    }
+    return factor;
 }
 
 function isDigit(ch: string): boolean {

@@ -48,7 +48,7 @@ export class Equation {
         // 求零空间
         const basis = nullspace(A, numCols);
         if (basis.length === 0) {
-            throw new BalanceError("零空间为空：该方程式无解");
+            throw new BalanceError("零空间为空，方程组无解");
         }
 
         // 找最小正整数解
@@ -72,7 +72,7 @@ export class Equation {
         this.products.forEach((factor, node) => {
             products.push(`${factor !== 1 ? factor : ''}${node.toString()}`);
         });
-        return `${reactants.join(' + ')} --> ${products.join(' + ')}`;
+        return `${reactants.join(' + ')} ==> ${products.join(' + ')}`;
     }
 }
 

@@ -1,5 +1,6 @@
 import {Token, TokenType} from './Token.ts';
 import {Formula, Term, Element} from './AST.ts';
+import {Equation} from "./Equation.ts";
 
 export class ParseError extends Error {
     public readonly start: number;
@@ -23,12 +24,15 @@ export default class Parser {
             let token: Token;
             if (isUpper(ch)) {
                 const nextChar = chars[++i];
-                let end = nextChar === undefined ? length : i;
+                end = nextChar === undefined ? length : i;
                 if (nextChar !== undefined && isLower(nextChar)) {
                     end++;
                     i++;
                 }
                 const element = text.substring(start, end);
+                if (!elements.has(element)) {
+                    throw new ParseError(`未知的元素`, start, end);
+                }
                 token = new Token(TokenType.ELEMENT, element, start, end);
             }
             else if (isDigit(ch)) {
@@ -66,20 +70,35 @@ export default class Parser {
         }
         return tokens;
     }
-    static parse(text: string): Formula {
-        const tokens = Parser.tokenizer(text);
-        let context = new ParseContext(tokens,0);
-        return parseFormula(context);
+    static parseFormulas(text: string): Formula[] {
+        let tokens = Parser.tokenizer(text);
+        return splitTokens(tokens).map(tokens => {
+            return parseFormula(new ParseContext(tokens))
+        });
     }
 }
 
 class ParseContext {
     constructor(
         public tokens: Token[],
-        public current: number
+        public current: number = 0
     ) {}
 }
 
+function splitTokens(tokens: Token[]) {
+    let result: Token[][] = [];
+    let temp: Token[] = [];
+    for (let token of tokens) {
+        if (token.type === TokenType.SEPARATOR) {
+            result.push(temp);
+            temp = [];
+        } else {
+            temp.push(token);
+        }
+    }
+    result.push(temp);
+    return result;
+}
 
 function parseFormula(c: ParseContext): Formula {
     let formula: Formula = new Formula();
@@ -217,3 +236,18 @@ function isLeftBracket(ch: string): boolean {
 function isRightBracket(ch: string): boolean {
     return ch === ')' || ch === ']';
 }
+
+const elements: Set<string> = new Set([
+    "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne",
+    "Na", "Mg", "Al", "Si", "P",  "S",  "Cl", "Ar", "K",  "Ca",
+    "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
+    "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr",
+    "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn",
+    "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
+    "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb",
+    "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
+    "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
+    "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm",
+    "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds",
+    "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og"
+]);

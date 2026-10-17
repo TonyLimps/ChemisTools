@@ -1,68 +1,100 @@
 <script setup lang="ts">
 
-import Parser from "./chemistry/Parser.ts";
-import {ref} from "vue";
+import Parser, {ParseError} from "./chemistry/Parser.ts";
 import {Equation} from "./chemistry/Equation.ts";
+import {ref} from "vue";
 
-const text = ref('');
-const res = ref('');
+const reactants = ref('');
+const products = ref('');
+const information = ref('');
+const balanced = ref(false);
 
-function parse() {
+function balance() {
+    let reactantFormulas;
+    try {
+        reactantFormulas = Parser.parseFormulas(reactants.value.trim());
+    } catch (e) {
+        const message = (e as ParseError).message;
+        const start = (e as ParseError).start;
+        const end = (e as ParseError).end;
+        let message1 = reactants.value.slice(0, start);
+        let message2 = reactants.value.slice(start, end - start + 1);
+        let message3 = reactants.value.slice(end);
+        information.value = `${message}: ${message1}<mark style="background:#ffeb3b; color:#000;">${message2}</mark>${message3}`;
+        return;
+    }
+    let productFormulas;
+    try {
+        productFormulas = Parser.parseFormulas(products.value.trim());
+    } catch (e) {
+        const message = (e as ParseError).message;
+        const start = (e as ParseError).start;
+        const end = (e as ParseError).end;
+        let message3 = products.value.substring(end);
+        let message2 = products.value.substring(start, end - start);
+        let message1 = products.value.substring(0, start);
+        information.value = `${message}: ${message1}<mark style="background:#ffeb3b; color:#000;">${message2}</mark>${message3}`;
+        return;
+    }
+    let equation = new Equation(reactantFormulas, productFormulas);
+    try {
+        equation.balance();
+        balanced.value = true;
+        information.value = `配平成功: ${equation.toString()}`;
+    } catch (e) {
+        let message = (e as ParseError).message;
+        information.value = `配平失败: ${message}`;
+    }
+}
 
-    /*
-    const KNO3 = Parser.parse("KNO3");
-    const FeCl2 = Parser.parse("FeCl2");
-    const HCl = Parser.parse("HCl");
-    const KCl = Parser.parse("KCl");
-    const FeCl3 = Parser.parse("FeCl3");
-    const NO = Parser.parse("NO");
-    const H2O = Parser.parse("H2O");
-    const eq = new Equation([KNO3, FeCl2, HCl], [KCl, FeCl3, NO, H2O]);
-     */
-
-    /*
-    const FeS2 = Parser.parse("FeS2");
-    const O2 = Parser.parse("O2");
-    const Fe2O3 = Parser.parse("Fe2O3");
-    const SO2 = Parser.parse("SO2");
-    const eq = new Equation([FeS2, O2], [Fe2O3, SO2]);
-
-     */
-
-    /*
-    const P4 = Parser.parse("P4");
-    const CuSO4 = Parser.parse("CuSO4");
-    const H2O = Parser.parse("H2O");
-
-    const Cu3P = Parser.parse("Cu3P");
-    const H3PO4 = Parser.parse("H3PO4");
-    const H2SO4 = Parser.parse("H2SO4");
-    const eq = new Equation([P4, CuSO4, H2O],[Cu3P, H3PO4, H2SO4]);
-
-     */
-
-    const K4FeCN6 = Parser.parse("K4Fe(CN)6");
-    const KMnO4 = Parser.parse("KMnO4");
-    const H2SO4 = Parser.parse("H2SO4");
-
-    const CO2 = Parser.parse("CO2");
-    const KNO3 = Parser.parse("KNO3");
-    const H2O = Parser.parse("H2O");
-    const K2SO4 = Parser.parse("K2SO4");
-    const MnSO4 = Parser.parse("MnSO4");
-    const Fe2SO43 = Parser.parse("Fe2(SO4)3");
-
-    const eq = new Equation([K4FeCN6, KMnO4, H2SO4],[CO2,KNO3,H2O,K2SO4,MnSO4,Fe2SO43])
-    eq.balance();
-    let s = eq.toString();
-    console.log(s);
+function clean() {
+    reactants.value = '';
+    products.value = '';
+    information.value = '';
+    balanced.value = false;
 }
 </script>
 
 <template>
-    <input v-model="text"/>
-    <button @click="parse">123</button>
-    <p> {{ res }} </p>
+    <div class="container">
+        <div class="equation">
+            <input v-model="reactants"
+                   placeholder="输入反应物"/>
+            <span> ===> </span>
+            <input v-model="products"
+                   placeholder="输入生成物"/>
+        </div>
+        <div class="operations">
+            <button @click="balance">尝试配平</button>
+            <button v-if="balanced" @click="clean">再试一个</button>
+        </div>
+        <div class="information">
+            <span v-html="information"></span>
+        </div>
+    </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.equation {
+    display: flex;
+}
+
+.equation > * {
+    margin: 5px;
+    text-align: center;
+    font-size: 20px;
+}
+
+.equation > input {
+    padding: 0 5px;
+    field-sizing: content;
+
+    min-width: 10ch;
+    font-size: 20px;
+
+    outline: none;
+    border: none;
+
+    border-bottom: 2px solid black;
+}
+</style>

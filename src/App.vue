@@ -31,7 +31,7 @@ function balance() {
         const start = (e as ParseError).start;
         const end = (e as ParseError).end;
         let message3 = products.value.substring(end);
-        let message2 = products.value.substring(start, end - start);
+        let message2 = products.value.substring(start, end - start + 1);
         let message1 = products.value.substring(0, start);
         information.value = `${message}: ${message1}<mark style="background:#ffeb3b; color:#000;">${message2}</mark>${message3}`;
         return;
